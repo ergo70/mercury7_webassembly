@@ -1,0 +1,1 @@
+emcc mercury7.cpp "libmercury++.cpp" -o mercury7.js -O2 -sEXPORTED_FUNCTIONS=["_wasm_mercury"] -sEXPORTED_RUNTIME_METHODS=["cwrap"]

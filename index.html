@@ -1,0 +1,163 @@
+<html>
+<head>
+  <title>Mercury7 WebAssembly Demonstrator</title>
+  <script src="mercury7.js"></script>
+  <script src="d3.v6.js"></script>
+  <script>
+    var js_wrapped_mercury = Module.cwrap("wasm_mercury", "number", ["number", "number", "number", "number", "number"]);
+
+    function pressBtn() {
+      let H = document.getElementById("H");
+      let C = document.getElementById("C");
+      let N = document.getElementById("N");
+      let O = document.getElementById("O");
+      let S = document.getElementById("S");
+      let Cl = document.getElementById("Cl");
+      let F = document.getElementById("F");
+      let I = document.getElementById("I");
+      let charge = document.getElementById("charge");
+      let cutoff = document.getElementById("cutoff");
+      let spectrum_data = document.getElementById("spectrum_data");
+      let offset = 0;
+      let i = 0;
+      const composition = new Uint32Array(Module.HEAPU32.buffer, 0, 8)
+      composition.set([H.value, C.value, N.value, O.value, S.value, Cl.value, F.value, I.value]);
+      //offset += composition.length * composition.BYTES_PER_ELEMENT
+      const mz_array = new Float64Array(Module.HEAPF64.buffer, offset, 32)
+      //offset += mz_array.length * mz_array.BYTES_PER_ELEMENT
+      offset += mz_array.length
+      const abundance_array = new Float64Array(Module.HEAPF64.buffer, offset, 32);
+      //console.log(composition)
+      let sz = js_wrapped_mercury(mz_array.byteOffset, abundance_array.byteOffset, composition.byteOffset, charge.value, cutoff.value);
+      console.log(sz);
+      const _mz_array = mz_array.slice(0, sz).map(az => az.toFixed(3));
+      const _abundance_array = abundance_array.slice(0, sz).map(ab => (ab * 1000000.0).toFixed(3));
+      //console.log(mz_array);
+      //console.log(abundance_array);
+
+      spectrum_data.value = "";
+      spectrum_data.value += "m/z(u);abundance(ppm)\n";
+      while (i < _mz_array.length) {
+        spectrum_data.value += _mz_array[i] + ";" + _abundance_array[i] + "\n"
+        i++;
+      }
+
+      const margin = { top: 30, right: 30, bottom: 70, left: 60 },
+        width = 800 - margin.left - margin.right,
+        height = 640 - margin.top - margin.bottom;
+
+      var svg = d3.select("#spectrum_graph");
+
+      if (svg) {
+        svg.selectAll("*").remove();
+      }
+
+      // append the svg object to the body of the page
+      svg = d3.select("#spectrum_graph")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      // Parse the Data
+
+      var zippedData = d3.zip.apply(null, [_mz_array, _abundance_array]);
+      // X axis
+      var x = d3.scaleBand()
+        .range([0, width])
+        .domain(zippedData.map(function (d) { return d[0]; }))
+        .padding(0.2);
+      svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .attr("transform", "rotate(0)")
+        .style("text-anchor", "end");
+
+      // Add Y axis
+      var y = d3.scaleLinear()
+        .domain([0, 1000000])
+        .range([height, 0]);
+      svg.append("g")
+        .call(d3.axisLeft(y));
+
+      // Bars
+      svg.selectAll("mybar")
+        .data(zippedData)
+        .enter()
+        .append("rect")
+        .attr("x", function (d) { return x(d[0]); })
+        .attr("y", function (d) { return y(d[1]); })
+        .attr("width", 1).attr("transform", "translate(" + x.bandwidth() / 2.0 + ", 0)")
+        .attr("height", function (d) { return height - y(d[1]); })
+        .attr("fill", "#ff0000")
+
+      svg.append("text")
+        .attr("class", "x label")
+        .attr("text-anchor", "end")
+        .attr("x", width)
+        .attr("y", height - 6)
+        .text("m/z (u)");
+
+      svg.append("text")
+        .attr("class", "y label")
+        .attr("text-anchor", "end")
+        .attr("y", 6)
+        .attr("dy", ".75em")
+        .attr("transform", "rotate(-90)")
+        .text("abundance (ppm)");
+
+    }
+  </script>
+</head>
+
+<body>
+  <h4>Composition:</h4>
+  <table>
+    <tr>
+      <td align="right">
+        <label for="H">H:</label>
+        <input type="number" id="H" name="H" value="14">
+        <label for="C">C:</label>
+        <input type="number" id="C" name="C" value="20">
+        <label for="N">N:</label>
+        <input type="number" id="N" name="N" value="0">
+        <label for="O">O:</label>
+        <input type="number" id="O" name="O" value="4">
+      </td>
+    </tr>
+    <tr>
+      <td align="right">
+        <label for="S">S:</label>
+        <input type="number" id="S" name="S" value="0">
+        <label for="Cl">Cl:</label>
+        <input type="number" id="Cl" name="Cl" value="0">
+        <label for="F">F:</label>
+        <input type="number" id="F" name="F" value="0">
+        <label for="I">I:</label>
+        <input type="number" id="I" name="I" value="0">
+      </td>
+    </tr>
+    <tr>
+      <td align="right">
+        <label for="charge">Charge:</label>
+        <input type="number" id="charge" name="charge" value="0">
+        <label for="cutoff">Pruning threshold:</label>
+        <input type="number" id="cutoff" name="cutoff" value="10e-9">
+      </td>
+    </tr>
+    <tr>
+      <td align="right">
+        <button onclick="pressBtn()">Predict spectrum</button>
+      </td>
+    </tr>
+  </table>
+  <h4>Spectrum:</h4>
+  <div id="spectrum_graph"></div>
+  <h4>Data:</h4>
+  <textarea name="spectrum_data" id="spectrum_data" cols="40" rows="20"></textarea><br>
+  <a href="https://www.sciencedirect.com/science/article/pii/S1044030505010160" target="_blank">Rockwood, Haimi, Efficient Calculation
+    of Accurate Masses of Isotopic Peaks, <i>J. Am. Soc. Mass Spectrum</i>, 2006, 17, 3, 415-419</a>
+</body>
+</html>
