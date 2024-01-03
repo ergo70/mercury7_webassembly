@@ -5,4 +5,4 @@ For building with emscripten emcc see emcc_build.txt.
 
 To run it you need a local webserver, e.g. emrun index.html or python -m http.server.
 
-libmercury++ and d3 have their own licenses.
+libmercury++ and d3 come with their own licenses.
