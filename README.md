@@ -1,5 +1,5 @@
-# mercury7_webassembly
-A demonstrator how to build and use a WebAssembly of the mercury7 mass spectrum predictor.
+# mercury7 WebAssembly demonstrator
+A demonstrator how to build and use a WebAssembly module of the mercury7 mass spectrum predictor.
 
 For building with emscripten emcc see emcc_build.txt.
 
